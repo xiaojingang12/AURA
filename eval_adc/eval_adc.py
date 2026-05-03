@@ -1,16 +1,17 @@
 import argparse
 import json
+import os
 import re
 import time
 from pathlib import Path
 
 import requests
 
-BASE_URL = ""
-API_KEY = ""
-MODEL = "gpt-5.1-2025-11-13"
-METADATA_SOURCE_PATH = "/mnt/data/shansong/ADC/ADC/is_data_final/all_question.jsonl"
-DATASET_NAMES = {"1_data", "2_data", "3_data", "4_data", "5_data"}
+BASE_URL = os.getenv("OPENAI_BASE_URL")
+API_KEY = os.getenv("OPENAI_API_KEY", "")
+MODEL = os.getenv("AURA_EVAL_MODEL", "gpt-4o")
+METADATA_SOURCE_PATH = os.getenv("AURA_METADATA_SOURCE_PATH", "")
+DATASET_NAMES = {"Single-Sum", "Pair-Comp", "Multi-Comp", "Enumeration", "Temporal"}
 
 SYS_PROMPT = '''
 You are an expert tasked with extracting topic lists from response of the question.
@@ -58,6 +59,30 @@ def parse_arguments():
         type=str,
         default=None,
         help="Optional question file path. Supports both single-question dict JSON and multi-question list JSON.",
+    )
+    parser.add_argument(
+        "--metadata-source-path",
+        type=str,
+        default=METADATA_SOURCE_PATH,
+        help="Path to metadata JSON/JSONL records containing question, answer, and common error fields.",
+    )
+    parser.add_argument(
+        "--api-base",
+        type=str,
+        default=BASE_URL,
+        help="OpenAI-compatible API base URL. Defaults to OPENAI_BASE_URL.",
+    )
+    parser.add_argument(
+        "--api-key",
+        type=str,
+        default=API_KEY,
+        help="API key. Defaults to OPENAI_API_KEY.",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=MODEL,
+        help="Model used for topic extraction. Defaults to AURA_EVAL_MODEL or gpt-4o.",
     )
     return parser.parse_args()
 
@@ -536,13 +561,23 @@ def filter_response_records_by_difficulty(response_records, difficulty):
 
 
 def main():
+    global BASE_URL, API_KEY, MODEL
+
     args = parse_arguments()
     batch_start_time = time.time()
+    BASE_URL = args.api_base
+    API_KEY = args.api_key
+    MODEL = args.model
+
+    if not args.metadata_source_path:
+        raise SystemExit("Missing metadata source path. Use --metadata-source-path or set AURA_METADATA_SOURCE_PATH.")
+    if not API_KEY:
+        raise SystemExit("Missing API key. Use --api-key or set OPENAI_API_KEY.")
 
     response_records = load_records(args.response_path)
     response_records = filter_response_records_by_difficulty(response_records, args.difficulty)
     question_context = load_question_context(args.question_path)
-    metadata_records = load_records(METADATA_SOURCE_PATH)
+    metadata_records = load_records(args.metadata_source_path)
     metadata_lookup = build_metadata_lookup(metadata_records)
     aligned_records, missing_questions = align_records(response_records, metadata_lookup, question_context)
 
@@ -598,7 +633,7 @@ def main():
             "question_path": args.question_path,
             "save_path": str(final_save_path),
             "save_path_base": args.save_path,
-            "metadata_source_path": METADATA_SOURCE_PATH,
+            "metadata_source_path": args.metadata_source_path,
             "source_name": source_name,
             "difficulty": args.difficulty,
             "model": MODEL,

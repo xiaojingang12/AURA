@@ -1,55 +1,59 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
 from pathlib import Path
 
-COLLECTED_ROOT = Path("/mnt/data/shansong/GraphRAG/2_data_wor/Collected")
-DEFAULT_OUTPUT_ROOT = Path("/home/shansong/GraphRAG/eval_adc/batch_results")
-EVAL_SCRIPT = Path("eval_adc/eval_zss_test.py")
-VALID_DATASETS = ["1_data", "2_data", "3_data", "4_data", "5_data"]
+REPO_ROOT = Path(__file__).resolve().parents[1]
+COLLECTED_ROOT = Path(os.getenv("AURA_COLLECTED_ROOT", REPO_ROOT / "Collected"))
+DEFAULT_OUTPUT_ROOT = Path(os.getenv("AURA_EVAL_OUTPUT_ROOT", REPO_ROOT / "eval_aura" / "batch_results"))
+EVAL_SCRIPT = REPO_ROOT / "eval_aura" / "eval_adc.py"
+VALID_DATASETS = ["Single-Sum", "Pair-Comp", "Multi-Comp", "Enumeration", "Temporal"]
 VALID_DIFFICULTIES = {
     "simple": "simple_QA",
     "middle": "middle_QA",
     "hard": "hard_QA",
-    "simple_QA": "simple_QA",
-    "middle_QA": "middle_QA",
-    "hard_QA": "hard_QA",
 }
 
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="批量运行 eval_zss_test.py，对 Collected 下指定方法/数据集/难度的结果文件进行测评"
+        description="Run eval_aura/eval_aura.py over collected method outputs for selected datasets and difficulties."
     )
-    parser.add_argument("method", help="方法名，例如 RAPTOR、HippoRAG、LGraphRAG")
+    parser.add_argument("method", help="Method name, for example RAPTOR, HippoRAG, or LGraphRAG.")
     parser.add_argument(
         "arg2",
-        help="若提供两个参数，则该参数为难度(simple/middle/hard)；若提供三个参数，则该参数为数据集(1_data~5_data)",
+        help="Difficulty when two positional arguments are provided; dataset when three are provided.",
     )
     parser.add_argument(
         "arg3",
         nargs="?",
         default=None,
-        help="可选。提供时表示难度(simple/middle/hard)",
+        help="Optional difficulty when arg2 is a dataset name.",
+    )
+    parser.add_argument(
+        "--collected-root",
+        default=str(COLLECTED_ROOT),
+        help="Root directory containing collected method outputs.",
     )
     parser.add_argument(
         "--output-root",
         default=str(DEFAULT_OUTPUT_ROOT),
-        help="批量评测输出根目录。每个任务会输出到该目录下的 <method>/<source_name>.json",
+        help="Root directory for batch evaluation outputs.",
     )
     parser.add_argument(
         "--python-bin",
         default=sys.executable,
-        help="用于执行 eval_zss_test.py 的 Python 解释器",
+        help="Python executable used to run eval_aura/eval_adc.py.",
     )
     parser.add_argument(
         "--method-subdir",
         default="",
-        help="方法目录下的可选子目录，例如 is_data。默认读取 <method>/<dataset>/<difficulty>。",
+        help="Optional method subdirectory such as is_data.",
     )
     return parser.parse_args()
 
@@ -125,8 +129,8 @@ def resolve_result_path(question_dir):
 
 
 
-def build_search_roots(method, dataset_name, difficulty, method_subdir):
-    method_root = COLLECTED_ROOT / method
+def build_search_roots(collected_root, method, dataset_name, difficulty, method_subdir):
+    method_root = Path(collected_root) / method
     normalized_subdir = method_subdir.strip().strip("/")
     if normalized_subdir:
         return [method_root / normalized_subdir / dataset_name / difficulty]
@@ -137,11 +141,11 @@ def build_search_roots(method, dataset_name, difficulty, method_subdir):
     ]
 
 
-def collect_response_paths(method, dataset_names, difficulty, method_subdir=""):
+def collect_response_paths(collected_root, method, dataset_names, difficulty, method_subdir=""):
     response_paths = []
     missing_tasks = []
     for dataset_name in dataset_names:
-        search_roots = build_search_roots(method, dataset_name, difficulty, method_subdir)
+        search_roots = build_search_roots(collected_root, method, dataset_name, difficulty, method_subdir)
         search_root = next((path for path in search_roots if path.is_dir()), None)
         if search_root is None:
             searched_locations = ", ".join(str(path) for path in search_roots)
@@ -221,6 +225,7 @@ def main():
     args = parse_args()
     dataset_names, difficulty = resolve_targets(args.method, args.arg2, args.arg3)
     response_paths, missing_tasks = collect_response_paths(
+        args.collected_root,
         args.method,
         dataset_names,
         difficulty,

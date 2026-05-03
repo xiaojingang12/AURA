@@ -24,7 +24,10 @@ def eval_single(i, query, answer1, answer2, args):
     if i % 20 == 0:
         print(f"Processing {i}.")
 
-    client = OpenAI(api_key=args.api_key, base_url=args.api_base)
+    client_kwargs = {"api_key": args.api_key}
+    if args.api_base:
+        client_kwargs["base_url"] = args.api_base
+    client = OpenAI(**client_kwargs)
 
     sys_prompt = """
     ---Role---
@@ -83,7 +86,6 @@ def eval_single(i, query, answer1, answer2, args):
         {"role": "system", "content": sys_prompt},
         {"role": "user", "content": prompt},
     ]
-    # 准备用于传递给 API 的参数字典
     parameters = {
         "model": args.engine,
         "messages": messages,
@@ -168,7 +170,6 @@ def batch_eval(df_1, df_2, args):
     col_1 = "output" if "output" in df_1.columns else "pred"
     col_2 = "output" if "output" in df_2.columns else "pred"
     print(f"col1:{col_1}, col2:{col_2}")
-    # 合并两个数据框，确保对齐
     merged_df = pd.merge(df_1, df_2, on='question')
     queries = merged_df["question"].tolist()
     if col_1 in merged_df.columns:
@@ -213,14 +214,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--input_file1",
         type=str,
-        default="/mnt/data/yingli/GraphRAG/UltraDomain/cs/summary_kg/Results/results.json",
+        default="",
         help="Path to the first input file containing the questions and answers",
     )
 
     parser.add_argument(
         "--input_file2",
         type=str,
-        default="/mnt/data/yingli/GraphRAG/UltraDomain/cs/summary_lightrag/Results/results.json",
+        default="",
         help="Path to the second input file containing the questions and answers",
     )
 
@@ -240,12 +241,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--api_key",
         type=str,
+        default=os.getenv("OPENAI_API_KEY", ""),
         help="OpenAI API key",
     )
 
     parser.add_argument(
         "--api_base",
         type=str,
+        default=os.getenv("OPENAI_BASE_URL", ""),
         help="OpenAI API base URL",
     )
 
@@ -264,6 +267,12 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    if not args.input_file1 or not args.input_file2:
+        raise SystemExit("Missing input files. Use --input_file1 and --input_file2.")
+    if not args.output_file_name:
+        raise SystemExit("Missing output filename. Use --output_file_name.")
+    if not args.api_key:
+        raise SystemExit("Missing API key. Use --api_key or set OPENAI_API_KEY.")
 
     if args.input_file1.endswith(".json"):
         eval_file1 = pd.read_json(args.input_file1, orient="records", lines=True)

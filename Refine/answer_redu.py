@@ -1,12 +1,14 @@
+import argparse
+import os
 import re
 import time
 import json
 import requests
 from tqdm import tqdm
 
-BASE_URL = ""
-API_KEY = ""
-MODEL = "gpt-4o"
+BASE_URL = os.getenv("OPENAI_BASE_URL")
+API_KEY = os.getenv("OPENAI_API_KEY", "")
+MODEL = os.getenv("AURA_REFINE_MODEL", "gpt-4o")
 
 def refined(question, answer, evidence):
     sys_prompt = '''
@@ -202,16 +204,36 @@ def refined(question, answer, evidence):
 
 
 
-if __name__ == "__main__":
+def parse_args():
+    parser = argparse.ArgumentParser(description="Remove unsupported or redundant answer topics using evidence.")
+    parser.add_argument("--qa-path", required=True, help="Input QA JSON file.")
+    parser.add_argument("--evidence-path", required=True, help="Evidence/corpus JSON file.")
+    parser.add_argument("--output-path", required=True, help="Output JSON file for refined QA records.")
+    parser.add_argument("--reason-output-path", required=True, help="Output JSON file for refinement reasons.")
+    parser.add_argument("--api-base", default=BASE_URL, help="OpenAI-compatible API base URL.")
+    parser.add_argument("--api-key", default=API_KEY, help="API key. Defaults to OPENAI_API_KEY.")
+    parser.add_argument("--model", default=MODEL, help="Model name.")
+    return parser.parse_args()
 
-    qa_path = "/mnt/data/shansong/ADC/ADC/final_data/updated_4qa_with_errors_cleaned.json"
-    evidence_path = "/mnt/data/shansong/ADC/ADC/4pdf_id.json"
 
-    save_path = "/home/xinyang/graphrag_benchmark/answer_refine/4QA_answer_redu.json" 
+def main():
+    global BASE_URL, API_KEY, MODEL
+    args = parse_args()
+    BASE_URL = args.api_base
+    API_KEY = args.api_key
+    MODEL = args.model
+
+    if not API_KEY:
+        raise SystemExit("Missing API key. Use --api-key or set OPENAI_API_KEY.")
+
+    qa_path = args.qa_path
+    evidence_path = args.evidence_path
+
+    save_path = args.output_path
     results_for_json = [] 
 
     reson_json = []
-    save_path_reason = "/home/xinyang/graphrag_benchmark/answer_refine/4QA_answer_redu_reason.json" 
+    save_path_reason = args.reason_output_path
 
 
     try:
@@ -221,7 +243,7 @@ if __name__ == "__main__":
         print(f"Error: File not found: '{qa_path}'")
         exit(1) 
     except json.JSONDecodeError:
-        print(f"Error: '{qa_path}' is not a valid json file。")
+        print(f"Error: '{qa_path}' is not a valid JSON file.")
         exit(1)
 
     try:
@@ -291,6 +313,10 @@ if __name__ == "__main__":
 
         except IOError as e:
             print(f"\nError writing to JSON file: {e}")
+
+
+if __name__ == "__main__":
+    main()
 
     if reson_json:
         try:

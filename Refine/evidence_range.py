@@ -1,23 +1,25 @@
+import argparse
 import json
 import numpy as np
 import hnswlib
 import logging
+import os
 import requests
 from typing import List, Dict, Any, Tuple, Optional
 
-QA_FILE = '/mnt/data/shansong/ADC/ADC/5QA_xinyang.json'
-CORPUS_FILE = '/home/shansong/pac/news_api.json'
+QA_FILE = os.getenv("AURA_QA_FILE", "")
+CORPUS_FILE = os.getenv("AURA_CORPUS_FILE", "")
 HNSW_SPACE = 'cosine'
 TOP_K = 10
 
 
-OLLAMA_EMBED_BASE_URL = "" 
-OLLAMA_EMBED_API_KEY = ""  
+OLLAMA_EMBED_BASE_URL = os.getenv("OLLAMA_EMBED_BASE_URL", "")
+OLLAMA_EMBED_API_KEY = os.getenv("OLLAMA_EMBED_API_KEY", "")
 OLLAMA_EMBED_MODEL = "nomic-embed-text:latest"   
 
-OLLAMA_LLM_BASE_URL = "" 
-OLLAMA_LLM_API_KEY = ""
-OLLAMA_LLM_MODEL = "gpt-4o" 
+OLLAMA_LLM_BASE_URL = os.getenv("OPENAI_BASE_URL", os.getenv("OLLAMA_LLM_BASE_URL", "https://api.openai.com/v1"))
+OLLAMA_LLM_API_KEY = os.getenv("OPENAI_API_KEY", os.getenv("OLLAMA_LLM_API_KEY", ""))
+OLLAMA_LLM_MODEL = os.getenv("AURA_REFINE_MODEL", "gpt-4o")
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -107,7 +109,7 @@ def prepare_embeddings_and_index_ollama(corpus_data: List[Dict], model: str, bas
     return corpus_embeddings, hnsw_index, id_to_index_map, index_to_id_map
 
 def find_top_k_most_similar_efficient(hnsw_index: Any, query_embedding: np.ndarray, index_to_id_map: Dict, k: int) -> List:
-    """使用 HNSW 查找最相似的 K 个证据 ID。"""
+    """Find the top-k most similar evidence IDs with HNSW."""
     labels, _ = hnsw_index.knn_query(query_embedding, k=k)
     top_k_ids = [index_to_id_map[label] for label in labels[0]]
     return top_k_ids
@@ -264,7 +266,7 @@ def analyze_evidence_relevance_with_ollama(
 
         try:
             query_embedding_list = get_ollama_embedding(positive_context, ollama_embed_base_url, ollama_embed_model, ollama_embed_api_key)
-            query_embedding = np.array([query_embedding_list]) # hnswlib 需要二维数组 (num_queries, dim)
+            query_embedding = np.array([query_embedding_list])
         except Exception as e:
             logger.error(f"Error getting embedding for QA pair {i+1} query: {e}")
             stats["details"].append({
@@ -397,32 +399,54 @@ def print_summary_and_find_redundant(stats: Dict, top_k: int):
         print(json.dumps(simplified_detail, indent=2, ensure_ascii=False))
         print("-" * 20)
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Analyze evidence relevance and refine redundant QA questions.")
+    parser.add_argument("--qa-file", default=QA_FILE, help="Input QA JSON file.")
+    parser.add_argument("--corpus-file", default=CORPUS_FILE, help="Input corpus/evidence JSON file.")
+    parser.add_argument("--output-file", default="evidence_analysis_with_refined_questions.json", help="Output JSON file.")
+    parser.add_argument("--top-k", type=int, default=TOP_K, help="Number of nearest evidence documents to retrieve.")
+    parser.add_argument("--hnsw-space", default=HNSW_SPACE, help="HNSW distance space.")
+    parser.add_argument("--embed-base-url", default=OLLAMA_EMBED_BASE_URL, help="Embedding API base URL.")
+    parser.add_argument("--embed-api-key", default=OLLAMA_EMBED_API_KEY, help="Embedding API key, if required.")
+    parser.add_argument("--embed-model", default=OLLAMA_EMBED_MODEL, help="Embedding model name.")
+    parser.add_argument("--llm-base-url", default=OLLAMA_LLM_BASE_URL, help="OpenAI-compatible LLM API base URL.")
+    parser.add_argument("--llm-api-key", default=OLLAMA_LLM_API_KEY, help="LLM API key.")
+    parser.add_argument("--llm-model", default=OLLAMA_LLM_MODEL, help="LLM model name.")
+    return parser.parse_args()
+
+
 def main():
-    """主函数"""
-    qa_data, corpus_data = load_data(QA_FILE, CORPUS_FILE)
+    args = parse_args()
+    if not args.qa_file or not args.corpus_file:
+        raise SystemExit("Missing input files. Use --qa-file and --corpus-file.")
+    if not args.embed_base_url:
+        raise SystemExit("Missing embedding base URL. Use --embed-base-url or set OLLAMA_EMBED_BASE_URL.")
+    if not args.llm_base_url:
+        raise SystemExit("Missing LLM base URL. Use --llm-base-url or set OPENAI_BASE_URL.")
+
+    qa_data, corpus_data = load_data(args.qa_file, args.corpus_file)
 
     corpus_id_to_item_map = {item['id']: item for item in corpus_data}
 
     corpus_embeddings, hnsw_index, id_to_index_map, index_to_id_map = prepare_embeddings_and_index_ollama(
-        corpus_data, OLLAMA_EMBED_MODEL, OLLAMA_EMBED_BASE_URL, OLLAMA_EMBED_API_KEY, HNSW_SPACE
+        corpus_data, args.embed_model, args.embed_base_url, args.embed_api_key, args.hnsw_space
     )
 
     stats = analyze_evidence_relevance_with_ollama(
         qa_data, corpus_data, corpus_id_to_item_map,
-        hnsw_index, id_to_index_map, index_to_id_map, TOP_K,
-        OLLAMA_EMBED_BASE_URL, OLLAMA_EMBED_API_KEY, OLLAMA_EMBED_MODEL,
-        OLLAMA_LLM_BASE_URL, OLLAMA_LLM_API_KEY, OLLAMA_LLM_MODEL
+        hnsw_index, id_to_index_map, index_to_id_map, args.top_k,
+        args.embed_base_url, args.embed_api_key, args.embed_model,
+        args.llm_base_url, args.llm_api_key, args.llm_model
     )
 
-    print_summary_and_find_redundant(stats, TOP_K)
+    print_summary_and_find_redundant(stats, args.top_k)
 
-    output_file = 'evidence_analysis_with_refined_5questions.json'
     try:
-        with open(output_file, 'w', encoding='utf-8') as f:
+        with open(args.output_file, 'w', encoding='utf-8') as f:
             json.dump(stats, f, indent=2, ensure_ascii=False)
-        logger.info(f"Full results (including refined questions) saved to {output_file}")
+        logger.info(f"Full results (including refined questions) saved to {args.output_file}")
     except Exception as e:
-        logger.error(f"Failed to save results to {output_file}: {e}")
+        logger.error(f"Failed to save results to {args.output_file}: {e}")
 
 if __name__ == "__main__":
     print("--- Prerequisites Check ---")

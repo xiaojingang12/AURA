@@ -1,22 +1,22 @@
+import argparse
 import json
 import numpy as np
 from collections import defaultdict
 import logging
+import os
 from typing import List, Dict, Any, Tuple
 import requests
 from sklearn.cluster import KMeans 
 import warnings
 import random 
 
-# --- 配置 ---
-QA_FILE = '/mnt/data/shansong/ADC/ADC/5QA_re_totalid.json'
-CORPUS_FILE = '/mnt/data/shansong/ADC/ADC/5corpus_totalid.json'
-CLASSIFIED_OUTPUT_FILE = '/mnt/data/shansong/ADC/ADC/newqa_with_all_evidence_lists_5total_id_balanced.json' 
-CLUSTER_MAPPING_OUTPUT_FILE = '/mnt/data/shansong/ADC/ADC/newcluster_to_documents_1mapping_total_id_balanced.json' 
+QA_FILE = os.getenv("AURA_QA_FILE", "")
+CORPUS_FILE = os.getenv("AURA_CORPUS_FILE", "")
+CLASSIFIED_OUTPUT_FILE = os.getenv("AURA_CLASSIFIED_OUTPUT_FILE", "qa_with_all_evidence_lists.json")
+CLUSTER_MAPPING_OUTPUT_FILE = os.getenv("AURA_CLUSTER_MAPPING_OUTPUT_FILE", "cluster_to_documents_mapping.json")
 
-# --- Ollama Embedding 配置 ---
-OLLAMA_EMBED_BASE_URL = ""
-OLLAMA_EMBED_MODEL = "nomic-embed-text:latest"
+OLLAMA_EMBED_BASE_URL = os.getenv("OLLAMA_EMBED_BASE_URL", "")
+OLLAMA_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text:latest")
 
 
 NUM_CLUSTERS = 10 
@@ -348,7 +348,6 @@ def save_final_data(qa_data_with_lists: List[Dict], output_file: str):
                 return float(o)
             if isinstance(o, np.ndarray):
                 return o.tolist()
-            # 处理可能的 numpy.bool_
             if isinstance(o, np.bool_):
                 return bool(o)
             raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
@@ -361,9 +360,8 @@ def save_final_data(qa_data_with_lists: List[Dict], output_file: str):
         raise
 
 def save_cluster_mapping(cluster_to_total_ids: Dict[int, List[str]], output_file: str):
-    """保存聚类到文档 total_id 的映射关系。"""
+    """Save the mapping from cluster IDs to document total_id values."""
     try:
-        # 转换为 JSON 可序列化的格式（确保 key 是 Python int）
         serializable_mapping = {int(k): v for k, v in cluster_to_total_ids.items()}
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(serializable_mapping, f, indent=2, ensure_ascii=False)
@@ -373,25 +371,43 @@ def save_cluster_mapping(cluster_to_total_ids: Dict[int, List[str]], output_file
         raise
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Build simple/middle/hard evidence lists with balanced document clustering.")
+    parser.add_argument("--qa-file", default=QA_FILE, help="Input QA JSON file.")
+    parser.add_argument("--corpus-file", default=CORPUS_FILE, help="Input corpus JSON file.")
+    parser.add_argument("--output-file", default=CLASSIFIED_OUTPUT_FILE, help="Output QA JSON file.")
+    parser.add_argument("--cluster-output-file", default=CLUSTER_MAPPING_OUTPUT_FILE, help="Output cluster mapping JSON file.")
+    parser.add_argument("--embed-base-url", default=OLLAMA_EMBED_BASE_URL, help="Ollama embedding API base URL.")
+    parser.add_argument("--embed-model", default=OLLAMA_EMBED_MODEL, help="Ollama embedding model.")
+    parser.add_argument("--num-clusters", type=int, default=NUM_CLUSTERS, help="Number of clusters.")
+    parser.add_argument("--middle-evidence-limit", type=int, default=MIDDLE_EVIDENCE_LIMIT, help="Maximum middle evidence items per QA pair.")
+    return parser.parse_args()
+
+
 def main():
-    """主函数"""
-    qa_data, corpus_data = load_data(QA_FILE, CORPUS_FILE)
-    _, total_id_to_cluster, cluster_to_total_ids = cluster_documents(corpus_data, OLLAMA_EMBED_BASE_URL, OLLAMA_EMBED_MODEL, NUM_CLUSTERS)
+    args = parse_args()
+    if not args.qa_file or not args.corpus_file:
+        raise SystemExit("Missing input files. Use --qa-file and --corpus-file.")
+    if not args.embed_base_url:
+        raise SystemExit("Missing embedding base URL. Use --embed-base-url or set OLLAMA_EMBED_BASE_URL.")
+
+    qa_data, corpus_data = load_data(args.qa_file, args.corpus_file)
+    _, total_id_to_cluster, cluster_to_total_ids = cluster_documents(corpus_data, args.embed_base_url, args.embed_model, args.num_clusters)
 
     all_evidence_lists_dict = generate_all_evidence_lists_for_all(
         qa_data, 
         total_id_to_cluster, 
         cluster_to_total_ids, 
         corpus_data,
-        middle_limit=MIDDLE_EVIDENCE_LIMIT
+        middle_limit=args.middle_evidence_limit
     )
 
 
     final_qa_data = integrate_all_evidence_lists(qa_data, all_evidence_lists_dict)
 
-    save_final_data(final_qa_data, CLASSIFIED_OUTPUT_FILE)
+    save_final_data(final_qa_data, args.output_file)
 
-    save_cluster_mapping(cluster_to_total_ids, CLUSTER_MAPPING_OUTPUT_FILE)
+    save_cluster_mapping(cluster_to_total_ids, args.cluster_output_file)
 
 if __name__ == "__main__":
 

@@ -45,6 +45,11 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--exclude-diff-json",
+        default=None,
+        help="Optional diff JSON whose missing_in_left/extra_in_left sample IDs are excluded from aggregation.",
+    )
+    parser.add_argument(
         "--participate-filename",
         default="Participate_comparison.json",
         help="Filename used for per-directory participate comparison JSON output.",

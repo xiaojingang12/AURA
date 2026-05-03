@@ -1,4 +1,6 @@
+import argparse
 import json
+import os
 import re
 import time
 from typing import List, Dict, Set
@@ -19,7 +21,10 @@ class EvidenceValidator:
         self.context_data = {}
         self.common_errors = set()
         
-        self.client = OpenAI(api_key=api_key, base_url=base_url)
+        client_kwargs = {"api_key": api_key}
+        if base_url:
+            client_kwargs["base_url"] = base_url
+        self.client = OpenAI(**client_kwargs)
         self.model_name = model_name
 
     def load_data(self):
@@ -54,7 +59,7 @@ class EvidenceValidator:
             if not text:
                 continue
 
-            part = f"【证据ID: {total_id}】\n{text}"
+            part = f"[Evidence ID: {total_id}]\n{text}"
             if total_len + len(part) > max_length:
                 remaining = max_length - total_len
                 if remaining > 50:
@@ -67,11 +72,11 @@ class EvidenceValidator:
                 break
 
         if not evidence_parts:
-            return "无可用证据。"
+            return "No evidence available."
         return "\n\n---\n\n".join(evidence_parts)
 
     def _llm_verify(self, claim: str, evidence_text: str, max_retries: int = 3) -> bool:
-        prompt = f"""You are a rigorous academic fact-checking expert. The following evidence comes from one or more academic papers, each starting with 【Evidence ID: ...】 and separated by "---".
+        prompt = f"""You are a rigorous academic fact-checking expert. The following evidence comes from one or more academic papers, each starting with [Evidence ID: ...] and separated by "---".
 Based strictly on this evidence, determine whether the following statement is explicitly supported or logically inferable from at least one paper.
 Rules:
 Answer "Supported" only if the evidence contains sufficient information to support the statement.
@@ -98,12 +103,12 @@ Please respond only with "Supported" or "Not Supported"."""
                 elif "Not Supported" in answer:
                     return False
                 else:
-                    print(f"模型返回意外结果: '{answer}'，重试中... (尝试 {attempt + 1})")
+                    print(f"Unexpected model response: '{answer}'. Retrying... (attempt {attempt + 1})")
                     time.sleep(1)
             except Exception as e:
-                print(f"调用模型出错: {e}，重试中... (尝试 {attempt + 1})")
+                print(f"Model call failed: {e}. Retrying... (attempt {attempt + 1})")
                 time.sleep(2)
-        return False  # 默认不支持
+        return False
 
     def validate_answer_against_evidence(self, answer: str, evidence_list: List[Dict]) -> List[str]:
         if not answer.strip():
@@ -130,53 +135,64 @@ Please respond only with "Supported" or "Not Supported"."""
             question = qa_pair.get('question', '')
             answer = qa_pair.get('answer', '')
             evidence_list = qa_pair.get('evidence_list', [])
-            print(f"正在验证第 {idx + 1}/{len(self.qa_data)} 个 QA 对...")
+            print(f"Validating QA pair {idx + 1}/{len(self.qa_data)}...")
             errors = self.validate_answer_against_evidence(answer, evidence_list)
             for error in errors:
                 self.common_errors.add(error)
 
     def save_errors_to_file(self, output_file_path: str):
-        errors_list = sorted(self.common_errors)  # 排序便于阅读
+        errors_list = sorted(self.common_errors)
         with open(output_file_path, 'w', encoding='utf-8') as f:
             json.dump({
                 "total_errors_count": len(errors_list),
                 "common_errors": errors_list,
-                "description": "通过大模型（gpt-4o）验证识别出的不被证据支持的信息片段"
+                "description": "Unsupported answer fragments identified by model-based evidence validation."
             }, f, ensure_ascii=False, indent=2)
 
     def run_validation(self, output_file_path: str = "validation_errors.json"):
-        print("开始加载数据...")
+        print("Loading data...")
         self.load_data()
-        print(f"加载了 {len(self.qa_data)} 个 QA 对 和 {len(self.context_data)} 篇论文上下文")
+        print(f"Loaded {len(self.qa_data)} QA pairs and {len(self.context_data)} context documents")
 
-        print("开始使用大模型验证答案（每条信息片段独立验证）...")
+        print("Validating answer fragments with the model...")
         self.process_all_qa_pairs()
 
-        print(f"验证完成，识别出 {len(self.common_errors)} 个不被支持的信息片段")
+        print(f"Validation complete. Found {len(self.common_errors)} unsupported fragments")
         self.save_errors_to_file(output_file_path)
-        print(f"结果已保存到: {output_file_path}")
+        print(f"Results saved to: {output_file_path}")
         return self.common_errors
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Validate QA answer fragments against their evidence.")
+    parser.add_argument("--qa-path", required=True, help="Input QA JSON file.")
+    parser.add_argument("--context-path", required=True, help="Context/corpus JSON file.")
+    parser.add_argument("--output-path", required=True, help="Output JSON file.")
+    parser.add_argument("--api-key", default=os.getenv("OPENAI_API_KEY", ""), help="API key. Defaults to OPENAI_API_KEY.")
+    parser.add_argument("--api-base", default=os.getenv("OPENAI_BASE_URL", ""), help="OpenAI-compatible API base URL.")
+    parser.add_argument("--model", default=os.getenv("AURA_REFINE_MODEL", "gpt-4o"), help="Model name.")
+    return parser.parse_args()
+
+
 def main():
-    qa_file_path = "/mnt/data/shansong/ADC/ADC/final_data/updated_2qa.json"
-    context_file_path = "/mnt/data/shansong/ADC/ADC/2pdf_id.json"
-    output_file_path = "/mnt/data/shansong/ADC/ADC/2qa_validation_errors.json"
+    args = parse_args()
+    if not args.api_key:
+        raise SystemExit("Missing API key. Use --api-key or set OPENAI_API_KEY.")
 
     validator = EvidenceValidator(
-        qa_file_path=qa_file_path,
-        context_file_path=context_file_path,
-        api_key="sk-SHiLrPzmuREecae9E29f4eA62fD84eA5A3E569026fAf33De",
-        base_url="https://api.ai-gaochao.cn/v1",
-        model_name="gpt-4o"
+        qa_file_path=args.qa_path,
+        context_file_path=args.context_path,
+        api_key=args.api_key,
+        base_url=args.api_base,
+        model_name=args.model,
     )
 
-    common_errors = validator.run_validation(output_file_path)
+    common_errors = validator.run_validation(args.output_path)
 
     print("\n" + "="*60)
-    print("验证结果摘要")
+    print("Validation Summary")
     print("="*60)
-    print(f"共发现 {len(common_errors)} 个不被证据支持的信息片段：")
+    print(f"Found {len(common_errors)} unsupported answer fragments:")
     for i, error in enumerate(sorted(common_errors), 1):
         print(f"{i}. {error}")
 

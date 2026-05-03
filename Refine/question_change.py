@@ -1,11 +1,6 @@
+import argparse
 import json
 import logging
-
-# --- 配置 ---
-A_JSON_FILE = '/home/shansong/pac/evaluation/5qa.json'
-B_JSON_FILE = '/home/shansong/pac/5qa_with_evidence.json'
-OUTPUT_FILE = '/mnt/data/shansong/ADC/ADC/5QA_xinyang.json' 
-
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -72,14 +67,23 @@ def replace_questions(a_data: list, b_data: list) -> list:
     logger.info(f"Finished processing b.json. Replaced {replaced_count} questions.")
     return modified_b_data
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Replace questions in one QA file using a before/after mapping file.")
+    parser.add_argument("--mapping-path", required=True, help="JSON file containing before_question and question fields.")
+    parser.add_argument("--qa-path", required=True, help="QA JSON file whose question fields will be replaced.")
+    parser.add_argument("--output-path", required=True, help="Output JSON file.")
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
 
     try:
         logger.info("Starting the question replacement process...")
-        a_data = load_json_file(A_JSON_FILE)
-        b_data = load_json_file(B_JSON_FILE)
+        a_data = load_json_file(args.mapping_path)
+        b_data = load_json_file(args.qa_path)
         modified_b_data = replace_questions(a_data, b_data)
-        save_json_file(OUTPUT_FILE, modified_b_data)
+        save_json_file(args.output_path, modified_b_data)
         logger.info("Process completed successfully.")
     except Exception as e:
         logger.critical(f"An error occurred during the process: {e}")

@@ -1,13 +1,12 @@
 import argparse
 import json
+import os
 from pathlib import Path
 
 
 DEFAULT_FIELDS = [
     "total_tokens",
-    "prompt_tokens",
     "sample_time_seconds_sum",
-    "api_time_seconds_sum",
 ]
 
 
@@ -130,14 +129,6 @@ def sum_eval_metrics(
     missing_rel_dirs = sorted(selected_rel_dirs - matched_rel_dirs)
 
     metadata = {
-        "matched_file_count": len(matched_files),
-        "matched_rel_dir_count": len(matched_rel_dirs),
-        "missing_rel_dir_count": len(missing_rel_dirs),
-        "missing_rel_dirs": missing_rel_dirs,
-        "skipped_file_count": len(skipped_files),
-        "skipped_files": skipped_files,
-        "duplicate_rel_dir_count": len(duplicate_rel_dirs),
-        "duplicate_rel_dirs": duplicate_rel_dirs,
         "matched_files": matched_files,
     }
     return totals, metadata
@@ -155,8 +146,8 @@ def main() -> None:
     parser.add_argument(
         "--list-json",
         type=Path,
-        default=Path("/mnt/data/shansong/ADC/ADC/is_data_norm/eval_200_list.json"),
-        help="Path to the 200-sample list JSON.",
+        default=Path(os.environ["AURA_EVAL_200_LIST_JSON"]) if os.getenv("AURA_EVAL_200_LIST_JSON") else None,
+        help="Path to the 200-sample list JSON. Defaults to AURA_EVAL_200_LIST_JSON.",
     )
     parser.add_argument(
         "--method",
@@ -178,6 +169,9 @@ def main() -> None:
     args = parser.parse_args()
 
     input_dir = args.input_dir.resolve()
+    if args.list_json is None:
+        raise SystemExit("Missing list JSON. Use --list-json or set AURA_EVAL_200_LIST_JSON.")
+
     list_json_path = args.list_json.resolve()
 
     if not input_dir.is_dir():

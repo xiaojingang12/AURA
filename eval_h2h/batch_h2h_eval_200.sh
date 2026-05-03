@@ -2,16 +2,16 @@
 
 set -euo pipefail
 
-LIST_JSON="/mnt/data/shansong/ADC/ADC/is_data_norm/eval_200/sample_eval_200_from_participate.json"
-COLLECTED_ROOT="/mnt/data/shansong/GraphRAG"
+LIST_JSON="${LIST_JSON:-}"
+COLLECTED_ROOT="${COLLECTED_ROOT:-./Collected}"
 
 
-METHOD1="HiRAG"  
-METHOD2="KETRAG"      
+METHOD1="${METHOD1:-HiRAG}"
+METHOD2="${METHOD2:-KETRAG}"
 
-ENGINE="gpt-5.1-2025-11-13"
-API_BASE=""
-API_KEY=""   # export OPENAI_API_KEY
+ENGINE="${ENGINE:-gpt-4o}"
+API_BASE="${API_BASE:-${OPENAI_BASE_URL:-}}"
+API_KEY="${API_KEY:-${OPENAI_API_KEY:-}}"
 
 NUM_WORKERS=1
 MAX_RETRIES=3
@@ -24,8 +24,8 @@ TMP_ROOT="${OUT_ROOT_PAIR}/tmp_inputs"
 
 # ---------------------------------
 
-if [ ! -f "$LIST_JSON" ]; then
-  echo "[FATAL] list json not found: $LIST_JSON" >&2
+if [ -z "$LIST_JSON" ] || [ ! -f "$LIST_JSON" ]; then
+  echo "[FATAL] list json not found. Set LIST_JSON or edit this script." >&2
   exit 1
 fi
 

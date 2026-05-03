@@ -11,7 +11,7 @@ from pathlib import Path
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-REPO_ROOT = SCRIPT_DIR.parents[2]
+REPO_ROOT = SCRIPT_DIR.parent
 DEFAULT_BATCH_SCRIPT = SCRIPT_DIR / "batch_h2h_eval_200.sh"
 DEFAULT_EVAL_ROOT = REPO_ROOT / "eval_results_h2h_eval200"
 
@@ -140,12 +140,12 @@ def build_temp_script(
     patched_text = replace_assignment(
         patched_text,
         "METHOD1",
-        f'METHOD1={quote_bash(method1)} 
+        f"METHOD1={quote_bash(method1)}",
     )
     patched_text = replace_assignment(
         patched_text,
         "METHOD2",
-        f'METHOD2={quote_bash(method2)}      
+        f"METHOD2={quote_bash(method2)}",
     )
     patched_text = replace_assignment(
         patched_text,

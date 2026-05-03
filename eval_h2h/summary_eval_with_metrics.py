@@ -78,7 +78,10 @@ def eval_single(i, query, answer1, answer2, args):
         print(f"Processing {i}.")
 
     sample_start_time = time.time()
-    client = OpenAI(api_key=args.api_key, base_url=args.api_base)
+    client_kwargs = {"api_key": args.api_key}
+    if args.api_base:
+        client_kwargs["base_url"] = args.api_base
+    client = OpenAI(**client_kwargs)
 
     sys_prompt = """
     ---Role---
@@ -365,14 +368,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--input_file1",
         type=str,
-        default="/mnt/data/yingli/GraphRAG/UltraDomain/cs/summary_kg/Results/results.json",
+        default="",
         help="Path to the first input file containing the questions and answers",
     )
 
     parser.add_argument(
         "--input_file2",
         type=str,
-        default="/mnt/data/yingli/GraphRAG/UltraDomain/cs/summary_lightrag/Results/results.json",
+        default="",
         help="Path to the second input file containing the questions and answers",
     )
 
@@ -392,12 +395,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--api_key",
         type=str,
+        default=os.getenv("OPENAI_API_KEY", ""),
         help="OpenAI API key",
     )
 
     parser.add_argument(
         "--api_base",
         type=str,
+        default=os.getenv("OPENAI_BASE_URL", ""),
         help="OpenAI API base URL",
     )
 
@@ -430,6 +435,12 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    if not args.input_file1 or not args.input_file2:
+        raise SystemExit("Missing input files. Use --input_file1 and --input_file2.")
+    if not args.output_file_name:
+        raise SystemExit("Missing output filename. Use --output_file_name.")
+    if not args.api_key:
+        raise SystemExit("Missing API key. Use --api_key or set OPENAI_API_KEY.")
 
     eval_file1 = load_input_file(args.input_file1)
     eval_file2 = load_input_file(args.input_file2)
