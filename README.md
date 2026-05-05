@@ -1,36 +1,36 @@
 <div align="center">
 
-# AURA-QA: Abstract qUery answering with Reference-based Assessment
+# ASTRA-QA: A Benchmark for Abstract Question Answering over Documents
 
 <p><em>A benchmark for document-level, synthesis-heavy question answering in RAG systems.</em></p>
 
 [![Paper](https://img.shields.io/badge/%F0%9F%93%84%20Paper-arXiv%20coming%20soon-b31b1b?style=flat-square)](#)
-[![Dataset](https://img.shields.io/badge/%F0%9F%A4%97%20Dataset-Hugging%20Face-f9ab00?style=flat-square)](https://huggingface.co/datasets/sam234990/AURA-QA)
-[![Webpage](https://img.shields.io/badge/%F0%9F%8C%90%20Webpage-Project%20Page-2563eb?style=flat-square)](https://xinyangsally.github.io/aura-benchmark/)
+[![Dataset](https://img.shields.io/badge/%F0%9F%A4%97%20Dataset-Hugging%20Face-f9ab00?style=flat-square)](https://huggingface.co/datasets/sam234990/ASTRA-QA)
+[![Webpage](https://img.shields.io/badge/%F0%9F%8C%90%20Webpage-Project%20Page-2563eb?style=flat-square)](https://xinyangsally.github.io/astra-benchmark/)
 
 </div>
 
-> AURA-QA, short for Abstract qUery answering with Reference-based Assessment, evaluates whether a RAG system can read long documents, organize evidence, and produce grounded abstractive answers with reference-based assessment, rather than only retrieve short facts.
+> ASTRA-QA, short for AbSTRAct Question Answering over documents, evaluates whether a RAG system can read long documents, organize evidence, and produce grounded abstractive answers with reference-based assessment, rather than only retrieve short facts.
 
 <p align="center">
-  <img src="figures/alpha.png" alt="AURA-QA overview: topic-set evaluation versus head-to-head evaluation" width="96%">
+  <img src="figures/alpha.png" alt="ASTRA-QA overview: topic-set evaluation versus head-to-head evaluation" width="96%">
 </p>
 
-<p align="center"><em>Overview of AURA-QA and its topic-set-based evaluation paradigm.</em></p>
+<p align="center"><em>Overview of ASTRA-QA and its topic-set-based evaluation paradigm.</em></p>
 
-## Why AURA-QA?
+## Why ASTRA-QA?
 
 Many RAG benchmarks are still dominated by extractive or short-answer QA.
-AURA-QA is designed for a harder setting: answers that require summarization, comparison, enumeration, and temporal synthesis over full documents.
+ASTRA-QA is designed for a harder setting: answers that require summarization, comparison, enumeration, and temporal synthesis over full documents.
 
-AURA-QA focuses on two gaps:
+ASTRA-QA focuses on two gaps:
 
 - **Benchmark gap**: existing datasets rarely provide stable, human-curated abstractive references for document-level QA.
 - **Evaluation gap**: head-to-head judging is expensive, hard to scale, and often weak at explaining *why* one answer is better.
 
-## What AURA-QA Covers
+## What ASTRA-QA Covers
 
-AURA-QA spans academic papers and news documents, and organizes questions into five abstractive task families:
+ASTRA-QA spans academic papers and news documents, and organizes questions into five abstractive task families:
 
 - **Single-Sum**: summarize a single document into a compact, faithful answer
 - **Pair-Comp**: compare two documents, methods, entities, or events
@@ -45,14 +45,14 @@ To study retrieval difficulty, each question is evaluated under three retrieval 
 - **Hard**: a distractor-heavy task-level corpus
 
 <p align="center">
-  <img src="figures/workflow.png" alt="AURA-QA workflow: data collection, QA generation, and QA refinement" width="96%">
+  <img src="figures/workflow.png" alt="ASTRA-QA workflow: data collection, QA generation, and QA refinement" width="96%">
 </p>
 
-<p align="center"><em>AURA-QA construction workflow: data collection, QA generation, and QA refinement.</em></p>
+<p align="center"><em>ASTRA-QA construction workflow: data collection, QA generation, and QA refinement.</em></p>
 
 ## Reference-Based Evaluation
 
-AURA-QA pairs each question with a curated reference topic set and a hallucination set.
+ASTRA-QA pairs each question with a curated reference topic set and a hallucination set.
 Instead of relying only on pairwise preference judgments, we evaluate whether a model:
 
 - covers the key reference topics
@@ -74,7 +74,7 @@ python eval_adc/eval_adc.py \
 
 ## Dataset Snapshot
 
-The current paper-side statistics of AURA-QA are summarized below.
+The current paper-side statistics of ASTRA-QA are summarized below.
 This snapshot follows the five question categories used in the benchmark.
 `Tok.` denotes tokens, and `#C` denotes middle-level clusters.
 
@@ -87,7 +87,7 @@ This snapshot follows the five question categories used in the benchmark.
 | Temp | 156 | 1,579 | 1,434,193 | 120,514 | 7 |
 | **Total** | **869** | **2,096** | **16,080,106** | **347,963** | **54** |
 
-AURA-QA is designed to stress both abstractive answer quality and retrieval scope under increasingly challenging corpus settings.
+ASTRA-QA is designed to stress both abstractive answer quality and retrieval scope under increasingly challenging corpus settings.
 
 ## Repository Status
 
@@ -95,7 +95,7 @@ This repository is still being organized.
 We are gradually cleaning up and releasing:
 
 - benchmark data and metadata
-- evaluation scripts for AURA-QA
+- evaluation scripts for ASTRA-QA
 - reproducible experiment pipelines
 - documentation for running baselines
 
@@ -104,10 +104,10 @@ At the moment, the repository includes dataset construction scripts, refinement 
 ## Repository Layout
 
 ```text
-AURA-QA/
+ASTRA-QA/
 ├── Generate/      # question generation and data construction scripts
 ├── Refine/        # question/answer refinement and evidence alignment code
-├── eval_adc/      # topic-set-based AURA-QA evaluation scripts
+├── eval_adc/      # topic-set-based ASTRA-QA evaluation scripts
 ├── eval_h2h/      # head-to-head evaluation utilities
 ├── figures/       # figures used in the paper and README
 ├── notebooks/     # exploratory analysis and helper notebooks
@@ -117,16 +117,16 @@ AURA-QA/
 ## Planned Links
 
 - `arXiv`: [TBD]
-- `Hugging Face dataset`: [sam234990/AURA-QA](https://huggingface.co/datasets/sam234990/AURA-QA)
-- `Webpage`: [adc-benchmark](https://xinyangsally.github.io/adc-benchmark/)
+- `Hugging Face dataset`: [sam234990/ASTRA-QA](https://huggingface.co/datasets/sam234990/ASTRA-QA)
+- `Webpage`: [astra-benchmark](https://xinyangsally.github.io/astra-benchmark/)
 
 ## Citation
 
-If you find AURA-QA useful, please cite our paper once it is released.
+If you find ASTRA-QA useful, please cite our paper once it is released.
 
 ```bibtex
-@article{aura_qa_2026,
-  title   = {AURA-QA: A Benchmark for Abstract Query Answering over Documents},
+@article{astra_qa_2026,
+  title   = {ASTRA-QA: A Benchmark for Abstract Question Answering over Documents},
   author  = {TBD},
   journal = {arXiv},
   year    = {2026}
