@@ -4,7 +4,7 @@
 
 <p><em>A benchmark for document-level, synthesis-heavy question answering in RAG systems.</em></p>
 
-[![Paper](https://img.shields.io/badge/%F0%9F%93%84%20Paper-arXiv%20coming%20soon-b31b1b?style=flat-square)](#)
+[![Paper](https://img.shields.io/badge/%F0%9F%93%84%20Paper-arXiv%3A%202605.10168-b31b1b?style=flat-square)](https://arxiv.org/abs/2605.10168)
 [![Dataset](https://img.shields.io/badge/%F0%9F%A4%97%20Dataset-Hugging%20Face-f9ab00?style=flat-square)](https://huggingface.co/datasets/sam234990/ASTRA-QA)
 [![Webpage](https://img.shields.io/badge/%F0%9F%8C%90%20Webpage-Project%20Page-2563eb?style=flat-square)](https://xinyangsally.github.io/astra-benchmark/)
 
@@ -114,9 +114,9 @@ ASTRA-QA/
 └── README.md
 ```
 
-## Planned Links
+## Links
 
-- `arXiv`: [TBD]
+- `arXiv`: [2605.10168](https://arxiv.org/abs/2605.10168)
 - `Hugging Face dataset`: [sam234990/ASTRA-QA](https://huggingface.co/datasets/sam234990/ASTRA-QA)
 - `Webpage`: [astra-benchmark](https://xinyangsally.github.io/astra-benchmark/)
 
@@ -127,8 +127,11 @@ If you find ASTRA-QA useful, please cite our paper once it is released.
 ```bibtex
 @article{astra_qa_2026,
   title   = {ASTRA-QA: A Benchmark for Abstract Question Answering over Documents},
-  author  = {TBD},
+  author  = {Wang, Shu and Zhou, Shansong and Wang, Xinyang and Wang, Shiwei and Wu, Hulong and Fang, Yixiang},
   journal = {arXiv},
+  eprint  = {2605.10168},
+  archivePrefix = {arXiv},
+  url     = {https://arxiv.org/abs/2605.10168},
   year    = {2026}
 }
 ```
